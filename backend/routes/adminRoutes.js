@@ -1,0 +1,13 @@
+const express = require("express");
+const r = express.Router();
+const { getDashboardStats, getAllUsers, suspendUser, unsuspendUser, verifyFreelancer, getAllGigsAdmin, approveGig } = require("../controllers/adminController");
+const { protect, authorize } = require("../middleware/authMiddleware");
+const admin = [protect, authorize("admin")];
+r.get("/stats", ...admin, getDashboardStats);
+r.get("/users", ...admin, getAllUsers);
+r.put("/users/:id/suspend", ...admin, suspendUser);
+r.put("/users/:id/unsuspend", ...admin, unsuspendUser);
+r.put("/users/:id/verify-freelancer", ...admin, verifyFreelancer);
+r.get("/gigs", ...admin, getAllGigsAdmin);
+r.put("/gigs/:id/approve", ...admin, approveGig);
+module.exports = r;

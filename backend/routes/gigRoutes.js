@@ -1,0 +1,13 @@
+const express = require("express");
+const r = express.Router();
+const { getGigs, getGigById, createGig, updateGig, deleteGig, assignFreelancer, updateProgress, getMyGigs } = require("../controllers/gigController");
+const { protect, authorize } = require("../middleware/authMiddleware");
+r.get("/", getGigs);
+r.get("/my", protect, getMyGigs);
+r.get("/:id", protect, getGigById);
+r.post("/", protect, authorize("client"), createGig);
+r.put("/:id", protect, authorize("client", "admin"), updateGig);
+r.delete("/:id", protect, deleteGig);
+r.put("/:id/assign/:freelancerId", protect, authorize("client"), assignFreelancer);
+r.put("/:id/progress", protect, updateProgress);
+module.exports = r;
