@@ -45,34 +45,51 @@ export default function Login() {
           <p style={{ color: "var(--text-muted)", fontSize: 14 }}>{requires2FA ? "Enter the 6-digit code from your authenticator" : "Sign in to your SkillSphere account"}</p>
         </div>
         <div className="glass-card" style={{ padding: 36 }}>
-          {error && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 10, padding: "12px 16px", marginBottom: 20, fontSize: 14, color: "#f87171" }}>{error}</div>}
+          {error && (
+            <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 10, padding: "12px 16px", marginBottom: 20, fontSize: 14, color: "#f87171" }}>
+              {error}
+            </div>
+          )}
           {!requires2FA ? (
             <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <div>
                 <label style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 6, display: "block", textTransform: "uppercase", letterSpacing: 1 }}>Email</label>
-                <input className="input-glass" type="email" placeholder="you@example.com" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                <input className="input-glass" type="email" placeholder="you@example.com" required
+                  value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
               </div>
               <div>
                 <label style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 6, display: "block", textTransform: "uppercase", letterSpacing: 1 }}>Password</label>
-                <input className="input-glass" type="password" placeholder="••••••••" required value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+                <input className="input-glass" type="password" placeholder="••••••••" required
+                  value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
               </div>
-              <div style={{ textAlign: "right" }}><Link to="/forgot-password" style={{ fontSize: 13, color: "var(--primary)", textDecoration: "none" }}>Forgot password?</Link></div>
-              <button className="btn-primary" disabled={loading} style={{ marginTop: 8, fontSize: 15, padding: "14px", borderRadius: 12, width: "100%" }}>{loading ? "Signing in…" : "Sign In →"}</button>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ flex: 1, height: 1, background: "var(--glass-border)" }} />
-                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>or</span>
-                <div style={{ flex: 1, height: 1, background: "var(--glass-border)" }} />
+              <div style={{ textAlign: "right" }}>
+                <Link to="/forgot-password" style={{ fontSize: 13, color: "var(--primary)", textDecoration: "none" }}>Forgot password?</Link>
               </div>
-              <a href="/api/auth/google" className="btn-ghost" style={{ textAlign: "center", display: "block", padding: "12px", textDecoration: "none", fontSize: 14, borderRadius: 12 }}>🔵 Continue with Google</a>
+              <button className="btn-primary" disabled={loading} style={{ marginTop: 8, fontSize: 15, padding: "14px", borderRadius: 12, width: "100%" }}>
+                {loading ? "Signing in…" : "Sign In →"}
+              </button>
             </form>
           ) : (
             <form onSubmit={handle2FA} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <input className="input-glass" type="text" placeholder="000000" required maxLength={6} value={code} onChange={(e) => setCode(e.target.value)} style={{ textAlign: "center", fontSize: 24, letterSpacing: 8 }} />
-              <button className="btn-primary" disabled={loading} style={{ fontSize: 15, padding: "14px", borderRadius: 12 }}>{loading ? "Verifying…" : "Verify →"}</button>
+              <div style={{ textAlign: "center", marginBottom: 8 }}>
+                <p style={{ fontSize: 14, color: "var(--text-muted)" }}>Enter the 6-digit code from your authenticator app</p>
+              </div>
+              <input className="input-glass" type="text" placeholder="000000" required maxLength={6}
+                value={code} onChange={(e) => setCode(e.target.value)}
+                style={{ textAlign: "center", fontSize: 24, letterSpacing: 8 }} />
+              <button className="btn-primary" disabled={loading} style={{ fontSize: 15, padding: "14px", borderRadius: 12 }}>
+                {loading ? "Verifying…" : "Verify →"}
+              </button>
+              <button type="button" onClick={() => setRequires2FA(false)}
+                style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 13, cursor: "pointer", textDecoration: "underline" }}>
+                ← Back to login
+              </button>
             </form>
           )}
         </div>
-        <p style={{ textAlign: "center", marginTop: 24, fontSize: 14, color: "var(--text-muted)" }}>No account? <Link to="/register" style={{ color: "var(--primary)", fontWeight: 600, textDecoration: "none" }}>Create one free</Link></p>
+        <p style={{ textAlign: "center", marginTop: 24, fontSize: 14, color: "var(--text-muted)" }}>
+          No account? <Link to="/register" style={{ color: "var(--primary)", fontWeight: 600, textDecoration: "none" }}>Create one free</Link>
+        </p>
       </div>
     </div>
   );

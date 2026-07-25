@@ -11,11 +11,9 @@ export default function MyProfile() {
   const [tab, setTab] = useState("basic");
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  // Basic fields
   const [basic, setBasic] = useState({ name: "", phone: "", city: "", state: "", country: "" });
-  // Freelancer fields
   const [fl, setFl] = useState({ title: "", bio: "", pricing: { hourlyRate: "", milestoneBased: true }, skills: [], resumeUrl: "" });
+  const [clientInfo, setClientInfo] = useState({ companyName: "", industry: "", about: "" });
   const [newSkill, setNewSkill] = useState({ name: "", proficiency: "Intermediate" });
 
   useEffect(() => {
@@ -26,6 +24,9 @@ export default function MyProfile() {
       setBasic({ name: u.name || "", phone: u.phone || "", city: u.location?.city || "", state: u.location?.state || "", country: u.location?.country || "" });
       if (u.role === "freelancer" && p) {
         setFl({ title: p.title || "", bio: p.bio || "", pricing: { hourlyRate: p.pricing?.hourlyRate || "", milestoneBased: p.pricing?.milestoneBased ?? true }, skills: p.skills || [], resumeUrl: p.resumeUrl || "" });
+      }
+      if (u.role === "client" && p) {
+        setClientInfo({ companyName: p.companyName || "", industry: p.industry || "", about: p.about || "" });
       }
     });
   }, []);
@@ -48,6 +49,15 @@ export default function MyProfile() {
     finally { setLoading(false); }
   };
 
+  const saveClient = async () => {
+    setLoading(true);
+    try {
+      await updateClientProfileApi({ companyName: clientInfo.companyName, industry: clientInfo.industry, about: clientInfo.about });
+      setSaved(true); setTimeout(() => setSaved(false), 2500);
+    } catch {}
+    finally { setLoading(false); }
+  };
+
   const addSkill = () => {
     if (!newSkill.name.trim()) return;
     setFl((f) => ({ ...f, skills: [...f.skills, { name: newSkill.name.trim(), proficiency: newSkill.proficiency }] }));
@@ -55,9 +65,14 @@ export default function MyProfile() {
   };
   const removeSkill = (i) => setFl((f) => ({ ...f, skills: f.skills.filter((_, idx) => idx !== i) }));
 
-  const tabs = [{ key: "basic", label: "Basic Info" }, ...(user?.role === "freelancer" ? [{ key: "freelancer", label: "Freelancer Profile" }] : [{ key: "client", label: "Business Info" }])];
+  const tabs = [
+    { key: "basic", label: "Basic Info" },
+    ...(user?.role === "freelancer" ? [{ key: "freelancer", label: "Freelancer Profile" }] : [{ key: "client", label: "Business Info" }])
+  ];
 
-  const inputLabel = (t) => <label style={{ fontSize: 12, color: "var(--text-muted)", display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>{t}</label>;
+  const inputLabel = (t) => (
+    <label style={{ fontSize: 12, color: "var(--text-muted)", display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>{t}</label>
+  );
 
   return (
     <DashLayout title="Your Profile" subtitle="Manage your public profile and settings">
@@ -68,7 +83,7 @@ export default function MyProfile() {
       )}
 
       {/* Tabs */}
-      <div style={{ display: "flex", gap: 4, marginBottom: 28, borderBottom: "1px solid var(--glass-border)", paddingBottom: 0 }}>
+      <div style={{ display: "flex", gap: 4, marginBottom: 28, borderBottom: "1px solid var(--glass-border)" }}>
         {tabs.map((t) => (
           <button key={t.key} onClick={() => setTab(t.key)}
             style={{ padding: "10px 20px", background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 600, color: tab === t.key ? "var(--primary)" : "var(--text-muted)", borderBottom: `2px solid ${tab === t.key ? "var(--primary)" : "transparent"}`, transition: "all 0.2s", fontFamily: "'Space Grotesk', sans-serif" }}>
@@ -77,9 +92,9 @@ export default function MyProfile() {
         ))}
       </div>
 
+      {/* Basic Info Tab */}
       {tab === "basic" && (
         <div className="glass-card" style={{ padding: 32, maxWidth: 600, display: "flex", flexDirection: "column", gap: 20 }}>
-          {/* Avatar */}
           <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 8 }}>
             <div style={{ width: 72, height: 72, borderRadius: "50%", background: "linear-gradient(135deg, rgba(108,99,255,0.4), rgba(168,85,247,0.3))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, fontWeight: 700, border: "2px solid rgba(108,99,255,0.4)" }}>
               {basic.name?.[0] || user?.name?.[0]}
@@ -110,11 +125,41 @@ export default function MyProfile() {
             </div>
           </div>
           <button className="btn-primary" onClick={saveBasic} disabled={loading} style={{ borderRadius: 12, padding: "12px 28px", alignSelf: "flex-start" }}>
-            {loading ? "Saving…" : "Save Changes"}
+            {loading ? "Saving..." : "Save Changes"}
           </button>
         </div>
       )}
 
+      {/* Client Business Info Tab */}
+      {tab === "client" && (
+        <div className="glass-card" style={{ padding: 32, maxWidth: 600, display: "flex", flexDirection: "column", gap: 20 }}>
+          <h3 style={{ fontWeight: 700, marginBottom: 4 }}>Business Info</h3>
+          <div>
+            {inputLabel("Company Name")}
+            <input className="input-glass" placeholder="e.g. Nayoda Technologies"
+              value={clientInfo.companyName}
+              onChange={(e) => setClientInfo({ ...clientInfo, companyName: e.target.value })} />
+          </div>
+          <div>
+            {inputLabel("Industry")}
+            <input className="input-glass" placeholder="e.g. Software Development"
+              value={clientInfo.industry}
+              onChange={(e) => setClientInfo({ ...clientInfo, industry: e.target.value })} />
+          </div>
+          <div>
+            {inputLabel("About")}
+            <textarea className="input-glass" placeholder="Tell freelancers about your company and what kind of work you post..."
+              rows={4} value={clientInfo.about}
+              onChange={(e) => setClientInfo({ ...clientInfo, about: e.target.value })}
+              style={{ resize: "vertical", minHeight: 110 }} />
+          </div>
+          <button className="btn-primary" onClick={saveClient} disabled={loading} style={{ borderRadius: 12, padding: "12px 28px", alignSelf: "flex-start" }}>
+            {loading ? "Saving..." : "Save Business Info"}
+          </button>
+        </div>
+      )}
+
+      {/* Freelancer Profile Tab */}
       {tab === "freelancer" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 680 }}>
           <div className="glass-card" style={{ padding: 32, display: "flex", flexDirection: "column", gap: 18 }}>
@@ -125,7 +170,7 @@ export default function MyProfile() {
             </div>
             <div>
               {inputLabel("Bio")}
-              <textarea className="input-glass" placeholder="Tell clients about your expertise, experience, and what makes you stand out…" rows={4} value={fl.bio} onChange={(e) => setFl({ ...fl, bio: e.target.value })} style={{ resize: "vertical", minHeight: 110 }} />
+              <textarea className="input-glass" placeholder="Tell clients about your expertise and experience..." rows={4} value={fl.bio} onChange={(e) => setFl({ ...fl, bio: e.target.value })} style={{ resize: "vertical", minHeight: 110 }} />
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
               <div>
@@ -134,7 +179,7 @@ export default function MyProfile() {
               </div>
               <div>
                 {inputLabel("Resume URL")}
-                <input className="input-glass" placeholder="https://drive.google.com/…" value={fl.resumeUrl} onChange={(e) => setFl({ ...fl, resumeUrl: e.target.value })} />
+                <input className="input-glass" placeholder="https://drive.google.com/..." value={fl.resumeUrl} onChange={(e) => setFl({ ...fl, resumeUrl: e.target.value })} />
               </div>
             </div>
           </div>
@@ -162,7 +207,7 @@ export default function MyProfile() {
           </div>
 
           <button className="btn-primary" onClick={saveFreelancer} disabled={loading} style={{ borderRadius: 12, padding: "12px 28px", alignSelf: "flex-start" }}>
-            {loading ? "Saving…" : "Save Profile"}
+            {loading ? "Saving..." : "Save Profile"}
           </button>
         </div>
       )}

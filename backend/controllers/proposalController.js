@@ -75,5 +75,14 @@ const updateProposalStatus = asyncHandler(async (req, res) => {
 
   res.json({ success: true, proposal });
 });
+const getReceivedProposals = asyncHandler(async (req, res) => {
+  const gigs = await Gig.find({ client: req.user._id });
+  const gigIds = gigs.map((g) => g._id);
+  const proposals = await Proposal.find({ gig: { $in: gigIds } })
+    .populate("freelancer", "name avatar location")
+    .populate("gig", "title budget")
+    .sort({ createdAt: -1 });
+  res.json({ success: true, proposals });
+});
 
-module.exports = { submitProposal, getProposalsForGig, getMyProposals, updateProposalStatus };
+module.exports = { submitProposal, getProposalsForGig, getMyProposals, updateProposalStatus, getReceivedProposals };

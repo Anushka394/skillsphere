@@ -4,7 +4,9 @@ import { useSelector } from "react-redux";
 import { getGigByIdApi } from "../api/gigsApi";
 import { submitProposalApi } from "../api/proposalsApi";
 import Modal from "../components/Modal";
-
+import api from "../api/axios";
+import PaymentButton from "../components/PaymentButton";
+import ReviewModal from "../components/ReviewModal";
 const STATUS_COLORS = { open: "success", in_progress: "warning", completed: "cyan", cancelled: "danger" };
 
 export default function GigDetail() {
@@ -13,23 +15,34 @@ export default function GigDetail() {
   const navigate = useNavigate();
   const [gig, setGig] = useState(null);
   const [recommendations, setRecommendations] = useState([]);
+  const [proposals, setProposals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [proposalOpen, setProposalOpen] = useState(false);
   const [proposal, setProposal] = useState({ description: "", bidAmount: "", estimatedCompletionDays: "" });
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
-
+  const [reviewOpen, setReviewOpen] = useState(false);
   useEffect(() => {
-    getGigByIdApi(id).then((r) => { setGig(r.data.gig); setRecommendations(r.data.recommendations || []); })
-      .catch(() => navigate("/gigs"))
-      .finally(() => setLoading(false));
+    getGigByIdApi(id).then((r) => {
+      setGig(r.data.gig);
+      setRecommendations(r.data.recommendations || []);
+    }).catch(() => navigate("/gigs")).finally(() => setLoading(false));
   }, [id]);
+  
+  // Fetch proposals for this gig if client
+  useEffect(() => {
+    if (user?.role === "client" && id) {
+      api.get(`/proposals/gig/${id}`).then((r) => {
+        setProposals(r.data.proposals || []);
+      }).catch(() => {});
+    }
+  }, [id, user]);
 
   const handleProposal = async (e) => {
     e.preventDefault(); setSubmitting(true); setError("");
     try {
-      await submitProposalApi(id, { ...proposal, bidAmount: Number(proposal.bidAmount), estimatedCompletionDays: Number(proposal.estimatedCompletionDays) });
+      await submitProposalApi(id, { gigId: id, ...proposal, bidAmount: Number(proposal.bidAmount), estimatedCompletionDays: Number(proposal.estimatedCompletionDays) });
       setSubmitted(true); setProposalOpen(false);
     } catch (err) { setError(err.response?.data?.message || "Failed to submit proposal"); }
     finally { setSubmitting(false); }
@@ -43,7 +56,7 @@ export default function GigDetail() {
 
   if (!gig) return null;
 
-  const isOwner = user?._id === gig.client?._id;
+  const isOwner = user?._id === gig.client?._id || user?._id?.toString() === gig.client?._id?.toString();
   const isFreelancer = user?.role === "freelancer";
 
   return (
@@ -88,27 +101,131 @@ export default function GigDetail() {
           </div>
 
           {/* Milestones */}
-          {gig.milestones?.length > 0 && (
+{gig.milestones?.length > 0 && (
+  <div className="glass-card" style={{ padding: 24, marginBottom: 20 }}>
+    <h3 style={{ fontWeight: 700, marginBottom: 16 }}>
+      Project Milestones
+    </h3>
+
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {gig.milestones.map((m, i) => (
+        <div
+          key={i}
+          style={{ display: "flex", gap: 16, alignItems: "flex-start" }}
+        >
+          <div
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: "50%",
+              background: "linear-gradient(135deg, #6c63ff, #a855f7)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 12,
+              fontWeight: 700,
+              flexShrink: 0,
+            }}
+          >
+            {i + 1}
+          </div>
+
+          <div style={{ flex: 1 }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+              }}
+            >
+              <span style={{ fontWeight: 600, fontSize: 14 }}>
+                {m.title}
+              </span>
+
+              <span
+                style={{
+                  color: "#10b981",
+                  fontWeight: 700,
+                  fontSize: 14,
+                }}
+              >
+                ₹{m.amount.toLocaleString()}
+              </span>
+            </div>
+
+            {m.description && (
+              <p
+                style={{
+                  fontSize: 13,
+                  color: "var(--text-muted)",
+                  marginTop: 4,
+                }}
+              >
+                {m.description}
+              </p>
+            )}
+
+            {isOwner &&
+              gig.status === "in_progress" &&
+              m.status !== "paid" && (
+                <div style={{ marginTop: 10 }}>
+                  <PaymentButton
+                    gigId={gig._id}
+                    milestoneId={m._id}
+                    amount={m.amount}
+                    milestoneName={m.title}
+                    onSuccess={() =>
+                      alert("✅ Milestone funded in escrow!")
+                    }
+                  />
+                </div>
+              )}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+
+          {/* Proposals section - client view */}
+          {isOwner && proposals.length > 0 && (
             <div className="glass-card" style={{ padding: 24, marginBottom: 20 }}>
-              <h3 style={{ fontWeight: 700, marginBottom: 16 }}>Project Milestones</h3>
+              <h3 style={{ fontWeight: 700, marginBottom: 16 }}>📋 Received Proposals ({proposals.length})</h3>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {gig.milestones.map((m, i) => (
-                  <div key={i} style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
-                    <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg, #6c63ff, #a855f7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{i + 1}</div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}>
-                        <span style={{ fontWeight: 600, fontSize: 14 }}>{m.title}</span>
-                        <span style={{ color: "#10b981", fontWeight: 700, fontSize: 14 }}>₹{m.amount.toLocaleString()}</span>
+                {proposals.map((p, i) => (
+                  <div key={i} style={{ padding: 16, borderRadius: 12, background: "rgba(255,255,255,0.03)", border: "1px solid var(--glass-border)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{ width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg, rgba(108,99,255,0.3), rgba(168,85,247,0.2))", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 13 }}>
+                          {p.freelancer?.name?.[0]}
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: 14 }}>{p.freelancer?.name}</div>
+                          <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Bid: <strong style={{ color: "#10b981" }}>₹{p.bidAmount?.toLocaleString()}</strong> · {p.estimatedCompletionDays} days</div>
+                        </div>
                       </div>
-                      {m.description && <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>{m.description}</p>}
+                      <span className={`badge badge-${p.status === "accepted" ? "success" : p.status === "rejected" ? "danger" : p.status === "negotiating" ? "cyan" : "warning"}`}>
+                        {p.status}
+                      </span>
                     </div>
+                    <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 10 }}>{p.description?.slice(0, 120)}...</p>
+                    {/* Message button for ALL statuses */}
+                    <Link
+                      to={`/chat?userId=${p.freelancer?._id}`}
+                      className="btn-ghost"
+                      style={{ display: "inline-block", textDecoration: "none", padding: "7px 14px", borderRadius: 8, fontSize: 12, marginRight: 8 }}>
+                      💬 Message
+                    </Link>
+                    <Link to={`/profile/${p.freelancer?._id}`}
+                      style={{ fontSize: 12, color: "var(--text-muted)", textDecoration: "none" }}>
+                      View Profile →
+                    </Link>
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          {/* AI Recommendations (client view only) */}
+          {/* AI Recommendations */}
           {isOwner && recommendations.length > 0 && (
             <div className="glass-card" style={{ padding: 24 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
@@ -117,16 +234,17 @@ export default function GigDetail() {
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {recommendations.map((r, i) => (
-                  <Link key={i} to={`/profile/${r.userId}`} style={{ textDecoration: "none" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderRadius: 12, background: "rgba(255,255,255,0.03)", border: "1px solid var(--glass-border)", transition: "all 0.2s" }}>
-                      <div style={{ width: 36, height: 36, borderRadius: "50%", background: "linear-gradient(135deg, rgba(108,99,255,0.3), rgba(34,211,238,0.2))", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14 }}>{r.name?.[0]}</div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 600, fontSize: 14 }}>{r.name}</div>
-                        <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{r.location?.city || "Remote"}</div>
-                      </div>
-                      <span className="badge badge-success">Match: {Math.round(r.score * 100)}%</span>
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderRadius: 12, background: "rgba(255,255,255,0.03)", border: "1px solid var(--glass-border)" }}>
+                    <div style={{ width: 36, height: 36, borderRadius: "50%", background: "linear-gradient(135deg, rgba(108,99,255,0.3), rgba(34,211,238,0.2))", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14 }}>{r.name?.[0]}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>{r.name}</div>
+                      <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{r.location?.city || "Remote"}</div>
                     </div>
-                  </Link>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <span className="badge badge-success">Match: {Math.round(r.score * 100)}%</span>
+                      <Link to={`/chat?userId=${r.userId}`} style={{ fontSize: 12, color: "var(--primary)", textDecoration: "none" }}>💬 Chat</Link>
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>
@@ -142,7 +260,9 @@ export default function GigDetail() {
                 <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Proposals</div>
               </div>
               <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "12px", textAlign: "center" }}>
-                <div style={{ fontSize: 18, fontWeight: 700, color: "#22d3ee" }}>{gig.deadline ? new Date(gig.deadline).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) : "Open"}</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "#22d3ee" }}>
+                  {gig.deadline ? new Date(gig.deadline).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) : "Open"}
+                </div>
                 <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Deadline</div>
               </div>
             </div>
@@ -153,13 +273,48 @@ export default function GigDetail() {
               </div>
             )}
 
+            {/* Freelancer actions */}
             {isFreelancer && gig.status === "open" && !submitted && (
-              <button className="btn-primary" onClick={() => setProposalOpen(true)} style={{ width: "100%", padding: "14px", borderRadius: 12, fontSize: 15, marginBottom: 10 }}>
+              <button className="btn-primary" onClick={() => setProposalOpen(true)}
+                style={{ width: "100%", padding: "14px", borderRadius: 12, fontSize: 15, marginBottom: 10 }}>
                 Submit Proposal →
               </button>
             )}
+
+            {/* Message client button for freelancer */}
+            {isFreelancer && gig.client?._id && (
+              <Link to={`/chat?userId=${gig.client._id}`} className="btn-ghost"
+                style={{ display: "block", textAlign: "center", textDecoration: "none", padding: "11px", borderRadius: 12, fontSize: 14, marginBottom: 10 }}>
+                💬 Message Client
+              </Link>
+            )}
+
+            {/* Client - go to proposals */}
+            {isOwner && (
+              <Link to="/proposals" className="btn-ghost"
+                style={{ display: "block", textAlign: "center", textDecoration: "none", padding: "11px", borderRadius: 12, fontSize: 14, marginBottom: 10 }}>
+                📋 View All Proposals
+              </Link>
+            )}
+            {/* Review button - show when gig completed */}
+{user && gig.status === "completed" && (
+  <>
+    <button className="btn-primary" onClick={() => setReviewOpen(true)}
+      style={{ width: "100%", padding: "12px", borderRadius: 12, fontSize: 14, marginBottom: 10 }}>
+      ⭐ Leave a Review
+    </button>
+    <ReviewModal
+      open={reviewOpen}
+      onClose={() => setReviewOpen(false)}
+      gigId={gig._id}
+      revieweeId={isOwner ? gig.assignedFreelancer?._id : gig.client?._id}
+    />
+  </>
+)}
+
             {!user && (
-              <Link to="/login" className="btn-primary" style={{ display: "block", textAlign: "center", textDecoration: "none", padding: "14px", borderRadius: 12, fontSize: 15, marginBottom: 10 }}>
+              <Link to="/login" className="btn-primary"
+                style={{ display: "block", textAlign: "center", textDecoration: "none", padding: "14px", borderRadius: 12, fontSize: 15, marginBottom: 10 }}>
                 Sign in to Apply →
               </Link>
             )}
@@ -173,7 +328,7 @@ export default function GigDetail() {
         <form onSubmit={handleProposal} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div>
             <label style={{ fontSize: 12, color: "var(--text-muted)", display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>Cover Letter</label>
-            <textarea className="input-glass" placeholder="Describe your approach, relevant experience, and why you're the best fit…" required rows={5}
+            <textarea className="input-glass" placeholder="Describe your approach and why you're the best fit…" required rows={5}
               value={proposal.description} onChange={(e) => setProposal({ ...proposal, description: e.target.value })}
               style={{ resize: "vertical", minHeight: 120 }} />
           </div>

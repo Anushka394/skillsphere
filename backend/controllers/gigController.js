@@ -58,6 +58,8 @@ const getGigById = asyncHandler(async (req, res) => {
 });
 
 // @route POST /api/gigs
+const Client = require("../models/Client");
+
 const createGig = asyncHandler(async (req, res) => {
   const { title, description, category, skillsRequired, budget, milestones, location, deadline } = req.body;
   const gig = await Gig.create({
@@ -66,6 +68,12 @@ const createGig = asyncHandler(async (req, res) => {
     location: location || { isRemote: true },
     deadline,
   });
+
+  // Update client gigs count
+  await Client.findOneAndUpdate(
+    { user: req.user._id },
+    { $inc: { totalGigsPosted: 1 } }
+  );
 
   res.status(201).json({ success: true, gig });
 });
