@@ -5,8 +5,8 @@ import { getGigByIdApi } from "../api/gigsApi";
 import { submitProposalApi } from "../api/proposalsApi";
 import Modal from "../components/Modal";
 import api from "../api/axios";
-import PaymentButton from "../components/PaymentButton";
 import ReviewModal from "../components/ReviewModal";
+
 const STATUS_COLORS = { open: "success", in_progress: "warning", completed: "cyan", cancelled: "danger" };
 
 export default function GigDetail() {
@@ -23,14 +23,15 @@ export default function GigDetail() {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [completing, setCompleting] = useState(false);
+
   useEffect(() => {
     getGigByIdApi(id).then((r) => {
       setGig(r.data.gig);
       setRecommendations(r.data.recommendations || []);
     }).catch(() => navigate("/gigs")).finally(() => setLoading(false));
   }, [id]);
-  
-  // Fetch proposals for this gig if client
+
   useEffect(() => {
     if (user?.role === "client" && id) {
       api.get(`/proposals/gig/${id}`).then((r) => {
@@ -48,6 +49,23 @@ export default function GigDetail() {
     finally { setSubmitting(false); }
   };
 
+  const handleMarkCompleted = async () => {
+    setCompleting(true);
+    try {
+      await api.put(`/gigs/${gig._id}`, { status: "completed" });
+      await api.put(`/gigs/${gig._id}/progress`, {
+        completionPercentage: 100,
+        note: "Gig marked as completed by client",
+      });
+      setGig({ ...gig, status: "completed" });
+      alert("✅ Gig marked as completed! Freelancer's stats updated.");
+    } catch {
+      alert("Failed to update gig status");
+    } finally {
+      setCompleting(false);
+    }
+  };
+
   if (loading) return (
     <div style={{ maxWidth: 900, margin: "60px auto", padding: "0 24px" }}>
       <div className="shimmer" style={{ height: 300, borderRadius: 20, marginBottom: 20 }} />
@@ -62,7 +80,8 @@ export default function GigDetail() {
   return (
     <div style={{ maxWidth: 1000, margin: "0 auto", padding: "40px 24px" }}>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 24, alignItems: "start" }}>
-        {/* Main */}
+
+        {/* Main Content */}
         <div>
           {/* Header */}
           <div className="glass-card" style={{ padding: 32, marginBottom: 20 }}>
@@ -78,12 +97,18 @@ export default function GigDetail() {
                   <div style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(108,99,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>
                     {gig.client?.name?.[0]}
                   </div>
-                  <span style={{ fontSize: 14, color: "var(--text-muted)" }}>Posted by <strong style={{ color: "var(--text-primary)" }}>{gig.client?.name}</strong></span>
-                  {gig.client?.location?.city && <span style={{ fontSize: 13, color: "var(--text-muted)" }}>📍 {gig.client.location.city}</span>}
+                  <span style={{ fontSize: 14, color: "var(--text-muted)" }}>
+                    Posted by <strong style={{ color: "var(--text-primary)" }}>{gig.client?.name}</strong>
+                  </span>
+                  {gig.client?.location?.city && (
+                    <span style={{ fontSize: 13, color: "var(--text-muted)" }}>📍 {gig.client.location.city}</span>
+                  )}
                 </div>
               </div>
               <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: 24, fontWeight: 800, color: "#10b981" }}>₹{gig.budget.min.toLocaleString()}–{gig.budget.max.toLocaleString()}</div>
+                <div style={{ fontSize: 24, fontWeight: 800, color: "#10b981" }}>
+                  ₹{gig.budget.min.toLocaleString()}–{gig.budget.max.toLocaleString()}
+                </div>
                 <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{gig.budget.type}</div>
               </div>
             </div>
@@ -101,92 +126,36 @@ export default function GigDetail() {
           </div>
 
           {/* Milestones */}
-{gig.milestones?.length > 0 && (
-  <div className="glass-card" style={{ padding: 24, marginBottom: 20 }}>
-    <h3 style={{ fontWeight: 700, marginBottom: 16 }}>
-      Project Milestones
-    </h3>
-
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      {gig.milestones.map((m, i) => (
-        <div
-          key={i}
-          style={{ display: "flex", gap: 16, alignItems: "flex-start" }}
-        >
-          <div
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: "50%",
-              background: "linear-gradient(135deg, #6c63ff, #a855f7)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 12,
-              fontWeight: 700,
-              flexShrink: 0,
-            }}
-          >
-            {i + 1}
-          </div>
-
-          <div style={{ flex: 1 }}>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-              }}
-            >
-              <span style={{ fontWeight: 600, fontSize: 14 }}>
-                {m.title}
-              </span>
-
-              <span
-                style={{
-                  color: "#10b981",
-                  fontWeight: 700,
-                  fontSize: 14,
-                }}
-              >
-                ₹{m.amount.toLocaleString()}
-              </span>
+          {gig.milestones?.length > 0 && (
+            <div className="glass-card" style={{ padding: 24, marginBottom: 20 }}>
+              <h3 style={{ fontWeight: 700, marginBottom: 16 }}>Project Milestones</h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {gig.milestones.map((m, i) => (
+                  <div key={i} style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+                    <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg, #6c63ff, #a855f7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+                      {i + 1}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ fontWeight: 600, fontSize: 14 }}>{m.title}</span>
+                        <span style={{ color: "#10b981", fontWeight: 700, fontSize: 14 }}>₹{m.amount.toLocaleString()}</span>
+                      </div>
+                      {m.description && (
+                        <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>{m.description}</p>
+                      )}
+                      {m.status && m.status !== "pending" && (
+                        <span style={{ fontSize: 11, marginTop: 6, display: "inline-block", padding: "3px 8px", borderRadius: 6, background: m.status === "paid" ? "rgba(16,185,129,0.15)" : "rgba(245,158,11,0.15)", color: m.status === "paid" ? "#34d399" : "#fbbf24" }}>
+                          {m.status}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
+          )}
 
-            {m.description && (
-              <p
-                style={{
-                  fontSize: 13,
-                  color: "var(--text-muted)",
-                  marginTop: 4,
-                }}
-              >
-                {m.description}
-              </p>
-            )}
-
-            {isOwner &&
-              gig.status === "in_progress" &&
-              m.status !== "paid" && (
-                <div style={{ marginTop: 10 }}>
-                  <PaymentButton
-                    gigId={gig._id}
-                    milestoneId={m._id}
-                    amount={m.amount}
-                    milestoneName={m.title}
-                    onSuccess={() =>
-                      alert("✅ Milestone funded in escrow!")
-                    }
-                  />
-                </div>
-              )}
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-)}
-
-          {/* Proposals section - client view */}
+          {/* Received Proposals - client view */}
           {isOwner && proposals.length > 0 && (
             <div className="glass-card" style={{ padding: 24, marginBottom: 20 }}>
               <h3 style={{ fontWeight: 700, marginBottom: 16 }}>📋 Received Proposals ({proposals.length})</h3>
@@ -200,7 +169,9 @@ export default function GigDetail() {
                         </div>
                         <div>
                           <div style={{ fontWeight: 600, fontSize: 14 }}>{p.freelancer?.name}</div>
-                          <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Bid: <strong style={{ color: "#10b981" }}>₹{p.bidAmount?.toLocaleString()}</strong> · {p.estimatedCompletionDays} days</div>
+                          <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                            Bid: <strong style={{ color: "#10b981" }}>₹{p.bidAmount?.toLocaleString()}</strong> · {p.estimatedCompletionDays} days
+                          </div>
                         </div>
                       </div>
                       <span className={`badge badge-${p.status === "accepted" ? "success" : p.status === "rejected" ? "danger" : p.status === "negotiating" ? "cyan" : "warning"}`}>
@@ -208,10 +179,7 @@ export default function GigDetail() {
                       </span>
                     </div>
                     <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 10 }}>{p.description?.slice(0, 120)}...</p>
-                    {/* Message button for ALL statuses */}
-                    <Link
-                      to={`/chat?userId=${p.freelancer?._id}`}
-                      className="btn-ghost"
+                    <Link to={`/chat?userId=${p.freelancer?._id}`} className="btn-ghost"
                       style={{ display: "inline-block", textDecoration: "none", padding: "7px 14px", borderRadius: 8, fontSize: 12, marginRight: 8 }}>
                       💬 Message
                     </Link>
@@ -235,7 +203,9 @@ export default function GigDetail() {
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {recommendations.map((r, i) => (
                   <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderRadius: 12, background: "rgba(255,255,255,0.03)", border: "1px solid var(--glass-border)" }}>
-                    <div style={{ width: 36, height: 36, borderRadius: "50%", background: "linear-gradient(135deg, rgba(108,99,255,0.3), rgba(34,211,238,0.2))", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14 }}>{r.name?.[0]}</div>
+                    <div style={{ width: 36, height: 36, borderRadius: "50%", background: "linear-gradient(135deg, rgba(108,99,255,0.3), rgba(34,211,238,0.2))", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14 }}>
+                      {r.name?.[0]}
+                    </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 600, fontSize: 14 }}>{r.name}</div>
                       <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{r.location?.city || "Remote"}</div>
@@ -254,6 +224,8 @@ export default function GigDetail() {
         {/* Sidebar */}
         <div style={{ position: "sticky", top: 80 }}>
           <div className="glass-card" style={{ padding: 24, marginBottom: 16 }}>
+
+            {/* Stats */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
               <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "12px", textAlign: "center" }}>
                 <div style={{ fontSize: 18, fontWeight: 700, color: "#6c63ff" }}>{gig.proposalsCount || 0}</div>
@@ -267,13 +239,14 @@ export default function GigDetail() {
               </div>
             </div>
 
+            {/* Proposal submitted success */}
             {submitted && (
               <div style={{ background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.3)", borderRadius: 10, padding: "12px", marginBottom: 16, fontSize: 14, color: "#34d399", textAlign: "center" }}>
                 ✅ Proposal submitted!
               </div>
             )}
 
-            {/* Freelancer actions */}
+            {/* Freelancer — Submit Proposal */}
             {isFreelancer && gig.status === "open" && !submitted && (
               <button className="btn-primary" onClick={() => setProposalOpen(true)}
                 style={{ width: "100%", padding: "14px", borderRadius: 12, fontSize: 15, marginBottom: 10 }}>
@@ -281,7 +254,7 @@ export default function GigDetail() {
               </button>
             )}
 
-            {/* Message client button for freelancer */}
+            {/* Freelancer — Message Client */}
             {isFreelancer && gig.client?._id && (
               <Link to={`/chat?userId=${gig.client._id}`} className="btn-ghost"
                 style={{ display: "block", textAlign: "center", textDecoration: "none", padding: "11px", borderRadius: 12, fontSize: 14, marginBottom: 10 }}>
@@ -289,29 +262,41 @@ export default function GigDetail() {
               </Link>
             )}
 
-            {/* Client - go to proposals */}
+            {/* Client — View All Proposals */}
             {isOwner && (
               <Link to="/proposals" className="btn-ghost"
                 style={{ display: "block", textAlign: "center", textDecoration: "none", padding: "11px", borderRadius: 12, fontSize: 14, marginBottom: 10 }}>
                 📋 View All Proposals
               </Link>
             )}
-            {/* Review button - show when gig completed */}
-{user && gig.status === "completed" && (
-  <>
-    <button className="btn-primary" onClick={() => setReviewOpen(true)}
-      style={{ width: "100%", padding: "12px", borderRadius: 12, fontSize: 14, marginBottom: 10 }}>
-      ⭐ Leave a Review
-    </button>
-    <ReviewModal
-      open={reviewOpen}
-      onClose={() => setReviewOpen(false)}
-      gigId={gig._id}
-      revieweeId={isOwner ? gig.assignedFreelancer?._id : gig.client?._id}
-    />
-  </>
-)}
 
+            {/* Client — Mark as Completed (only when in_progress) */}
+            {isOwner && gig.status === "in_progress" && (
+              <button
+                onClick={handleMarkCompleted}
+                disabled={completing}
+                style={{ width: "100%", padding: "12px", borderRadius: 12, fontSize: 14, marginBottom: 10, background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.4)", color: "#34d399", cursor: "pointer", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600 }}>
+                {completing ? "Updating…" : "✅ Mark as Completed"}
+              </button>
+            )}
+
+            {/* Leave a Review (when completed) */}
+            {user && gig.status === "completed" && (
+              <>
+                <button className="btn-primary" onClick={() => setReviewOpen(true)}
+                  style={{ width: "100%", padding: "12px", borderRadius: 12, fontSize: 14, marginBottom: 10 }}>
+                  ⭐ Leave a Review
+                </button>
+                <ReviewModal
+                  open={reviewOpen}
+                  onClose={() => setReviewOpen(false)}
+                  gigId={gig._id}
+                  revieweeId={isOwner ? gig.assignedFreelancer?._id : gig.client?._id}
+                />
+              </>
+            )}
+
+            {/* Not logged in */}
             {!user && (
               <Link to="/login" className="btn-primary"
                 style={{ display: "block", textAlign: "center", textDecoration: "none", padding: "14px", borderRadius: 12, fontSize: 15, marginBottom: 10 }}>
@@ -324,7 +309,11 @@ export default function GigDetail() {
 
       {/* Proposal Modal */}
       <Modal open={proposalOpen} onClose={() => setProposalOpen(false)} title="Submit a Proposal" width={520}>
-        {error && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 10, padding: "12px 16px", marginBottom: 16, fontSize: 14, color: "#f87171" }}>{error}</div>}
+        {error && (
+          <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 10, padding: "12px 16px", marginBottom: 16, fontSize: 14, color: "#f87171" }}>
+            {error}
+          </div>
+        )}
         <form onSubmit={handleProposal} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div>
             <label style={{ fontSize: 12, color: "var(--text-muted)", display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>Cover Letter</label>

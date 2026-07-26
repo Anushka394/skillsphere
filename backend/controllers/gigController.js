@@ -1,6 +1,7 @@
 const asyncHandler = require("express-async-handler");
 const Gig = require("../models/Gig");
 const Freelancer = require("../models/Freelancer");
+const Client = require("../models/Client");
 const User = require("../models/User");
 const Notification = require("../models/Notification");
 const { rankFreelancers } = require("../utils/aiMatching");
@@ -39,7 +40,6 @@ const getGigById = asyncHandler(async (req, res) => {
 
   if (!gig) { res.status(404); throw new Error("Gig not found"); }
 
-  // AI-ranked freelancer recommendations (for client view only)
   let recommendations = [];
   if (req.user && req.user._id.toString() === gig.client._id.toString()) {
     const freelancers = await Freelancer.find({}).populate("user", "name avatar location");
@@ -58,8 +58,6 @@ const getGigById = asyncHandler(async (req, res) => {
 });
 
 // @route POST /api/gigs
-const Client = require("../models/Client");
-
 const createGig = asyncHandler(async (req, res) => {
   const { title, description, category, skillsRequired, budget, milestones, location, deadline } = req.body;
   const gig = await Gig.create({
@@ -69,7 +67,7 @@ const createGig = asyncHandler(async (req, res) => {
     deadline,
   });
 
-  // Update client gigs count
+  // Update client gigs posted count
   await Client.findOneAndUpdate(
     { user: req.user._id },
     { $inc: { totalGigsPosted: 1 } }
@@ -86,6 +84,24 @@ const updateGig = asyncHandler(async (req, res) => {
 
   const allowed = ["title", "description", "category", "skillsRequired", "budget", "milestones", "location", "deadline", "status"];
   allowed.forEach((field) => { if (req.body[field] !== undefined) gig[field] = req.body[field]; });
+
+  // Auto-update freelancer completedGigs when client marks gig as completed
+  if (req.body.status === "completed" && gig.assignedFreelancer) {
+    await Freelancer.findOneAndUpdate(
+      { user: gig.assignedFreelancer },
+      { $inc: { completedGigs: 1 } }
+    );
+
+    // Notify freelancer
+    await Notification.create({
+      user: gig.assignedFreelancer,
+      type: "milestone_update",
+      title: "Gig completed! 🎉",
+      message: `Client marked "${gig.title}" as completed`,
+      link: `/gigs/${gig._id}`,
+    });
+  }
+
   await gig.save();
   res.json({ success: true, gig });
 });
@@ -153,7 +169,10 @@ const getMyGigs = asyncHandler(async (req, res) => {
   const filter = req.user.role === "client"
     ? { client: req.user._id }
     : { assignedFreelancer: req.user._id };
-  const gigs = await Gig.find(filter).populate("client", "name avatar").populate("assignedFreelancer", "name avatar").sort({ createdAt: -1 });
+  const gigs = await Gig.find(filter)
+    .populate("client", "name avatar")
+    .populate("assignedFreelancer", "name avatar")
+    .sort({ createdAt: -1 });
   res.json({ success: true, gigs });
 });
 

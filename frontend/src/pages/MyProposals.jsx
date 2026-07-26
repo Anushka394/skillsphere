@@ -20,12 +20,12 @@ export default function MyProposals() {
       }).catch(() => {
         api.get("/gigs/my").then((r) => {
           setProposals(r.data.gigs || []);
-        }).catch(() => { });
+        }).catch(() => {});
       }).finally(() => setLoading(false));
     } else {
       api.get("/proposals/my").then((r) => {
         setProposals(r.data.proposals || []);
-      }).catch(() => { }).finally(() => setLoading(false));
+      }).catch(() => {}).finally(() => setLoading(false));
     }
   }, [user]);
 
@@ -33,24 +33,28 @@ export default function MyProposals() {
     try {
       await updateProposalStatusApi(id, { status });
       setProposals((ps) => ps.map((p) => p._id === id ? { ...p, status } : p));
-    } catch { }
+      if (status === "accepted") {
+        alert("✅ Proposal accepted! Gig is now in progress.");
+      }
+    } catch (err) {
+      alert("Error: " + (err.response?.data?.message || err.message));
+    }
   };
 
   const filtered = filter === "all" ? proposals : proposals.filter((p) => p.status === filter);
 
   return (
     <DashLayout title={user?.role === "freelancer" ? "My Bids" : "Received Proposals"} subtitle="Track your proposal activity">
+
       {/* Filter tabs */}
       <div style={{ display: "flex", gap: 4, marginBottom: 24, flexWrap: "wrap" }}>
         {["all", "pending", "accepted", "rejected", "negotiating"].map((f) => (
           <button key={f} onClick={() => setFilter(f)}
-            style={{
-              padding: "8px 16px", borderRadius: 20, border: "1px solid", fontSize: 13, cursor: "pointer", fontWeight: 600, transition: "all 0.2s", textTransform: "capitalize",
+            style={{ padding: "8px 16px", borderRadius: 20, border: "1px solid", fontSize: 13, cursor: "pointer", fontWeight: 600, transition: "all 0.2s", textTransform: "capitalize",
               background: filter === f ? "rgba(108,99,255,0.2)" : "transparent",
               borderColor: filter === f ? "rgba(108,99,255,0.5)" : "var(--glass-border)",
-              color: filter === f ? "#a5a0ff" : "var(--text-muted)"
-            }}>
-            {f} {filter === "all" && f === "all" ? `(${proposals.length})` : ""}
+              color: filter === f ? "#a5a0ff" : "var(--text-muted)" }}>
+            {f} {f === "all" ? `(${proposals.length})` : ""}
           </button>
         ))}
       </div>
@@ -96,10 +100,10 @@ export default function MyProposals() {
                 {p.status && (
                   <span className={`badge badge-${STATUS[p.status] || "warning"}`} style={{ flexShrink: 0, fontSize: 12 }}>
                     {p.status === "pending" ? "⏳ Pending" :
-                      p.status === "accepted" ? "✅ Accepted" :
-                        p.status === "rejected" ? "❌ Rejected" :
-                          p.status === "negotiating" ? "💬 Negotiating" :
-                            p.status === "withdrawn" ? "↩️ Withdrawn" : p.status}
+                     p.status === "accepted" ? "✅ Accepted" :
+                     p.status === "rejected" ? "❌ Rejected" :
+                     p.status === "negotiating" ? "💬 Negotiating" :
+                     p.status === "withdrawn" ? "↩️ Withdrawn" : p.status}
                   </span>
                 )}
               </div>
@@ -167,7 +171,7 @@ export default function MyProposals() {
                 </div>
               )}
 
-              {/* FREELANCER ACTIONS */}
+              {/* FREELANCER - Pending */}
               {user?.role === "freelancer" && p.status === "pending" && (
                 <div style={{ display: "flex", gap: 8 }}>
                   <button className="btn-ghost" onClick={() => handleStatus(p._id, "withdrawn")}
@@ -181,7 +185,7 @@ export default function MyProposals() {
                 </div>
               )}
 
-              {/* FREELANCER - Negotiating status */}
+              {/* FREELANCER - Negotiating */}
               {user?.role === "freelancer" && p.status === "negotiating" && (
                 <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", padding: "10px 14px", background: "rgba(34,211,238,0.05)", borderRadius: 10, border: "1px solid rgba(34,211,238,0.2)" }}>
                   <span style={{ fontSize: 13, color: "#22d3ee" }}>💬 Client wants to negotiate the price</span>
@@ -209,7 +213,7 @@ export default function MyProposals() {
 
               {/* FREELANCER - Rejected */}
               {user?.role === "freelancer" && p.status === "rejected" && (
-                <div style={{ display: "flex", gap: 8, alignItems: "center", padding: "10px 14px", background: "rgba(239,68,68,0.05)", borderRadius: 10, border: "1px solid rgba(239,68,68,0.15)" }}>
+                <div style={{ padding: "10px 14px", background: "rgba(239,68,68,0.05)", borderRadius: 10, border: "1px solid rgba(239,68,68,0.15)" }}>
                   <span style={{ fontSize: 13, color: "#f87171" }}>This proposal was not selected. Keep trying! 💪</span>
                 </div>
               )}

@@ -5,7 +5,7 @@ import DashLayout from "../components/DashLayout";
 import api from "../api/axios";
 
 const StatCard = ({ icon, label, value, color = "#6c63ff" }) => (
-  <div className="stat-card" style={{ position: "relative", overflow: "hidden" }}>
+  <div className="stat-card">
     <div style={{ fontSize: 28, marginBottom: 8 }}>{icon}</div>
     <div style={{ fontSize: 28, fontWeight: 800, fontFamily: "'Space Grotesk', sans-serif", color }}>{value}</div>
     <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>{label}</div>
@@ -16,22 +16,38 @@ export default function Dashboard() {
   const { user } = useSelector((s) => s.auth);
   const [profile, setProfile] = useState(null);
   const [recentGigs, setRecentGigs] = useState([]);
+  const [proposalCount, setProposalCount] = useState(0);
+  const [acceptedCount, setAcceptedCount] = useState(0);
 
   useEffect(() => {
-    api.get("/profile").then((r) => setProfile(r.data.profile)).catch(() => {});
-    api.get("/gigs?limit=5").then((r) => setRecentGigs(r.data.gigs || [])).catch(() => {});
-  }, []);
+    api.get("/profile").then((r) => setProfile(r.data.profile)).catch(() => { });
+    api.get("/gigs?limit=5").then((r) => setRecentGigs(r.data.gigs || [])).catch(() => { });
+
+    if (user?.role === "freelancer") {
+      api.get("/proposals/my").then((r) => {
+        const proposals = r.data.proposals || [];
+        setProposalCount(proposals.length);
+        setAcceptedCount(proposals.filter((p) => p.status === "accepted").length);
+      }).catch(() => { });
+    }
+
+    if (user?.role === "client") {
+      api.get("/proposals/received").then((r) => {
+        const proposals = r.data.proposals || [];
+        setAcceptedCount(proposals.filter((p) => p.status === "accepted").length);
+      }).catch(() => { });
+    }
+  }, [user]);
 
   const clientStats = [
     { icon: "📋", label: "Gigs Posted", value: profile?.totalGigsPosted ?? "0", color: "#6c63ff" },
-    { icon: "💸", label: "Total Spent", value: profile?.totalSpent ? "₹" + profile.totalSpent.toLocaleString() : "₹0", color: "#a855f7" },
-    { icon: "✅", label: "Completed", value: profile?.completedGigs ?? "0", color: "#10b981" },
+    { icon: "✅", label: "Accepted Proposals", value: acceptedCount, color: "#10b981" },
     { icon: "⭐", label: "Avg Rating", value: profile?.avgRating ? profile.avgRating.toFixed(1) + " ⭐" : "New", color: "#f59e0b" },
   ];
 
   const freelancerStats = [
-    { icon: "💰", label: "Total Earnings", value: profile?.totalEarnings ? "₹" + profile.totalEarnings.toLocaleString() : "₹0", color: "#10b981" },
-    { icon: "🏆", label: "Completed Gigs", value: profile?.completedGigs ?? "0", color: "#6c63ff" },
+    { icon: "📤", label: "Proposals Sent", value: proposalCount, color: "#6c63ff" },
+    { icon: "✅", label: "Accepted", value: acceptedCount, color: "#10b981" },
     { icon: "👁️", label: "Profile Views", value: profile?.profileViews ?? "0", color: "#22d3ee" },
     { icon: "⭐", label: "Reputation", value: profile?.reputationScore ? profile.reputationScore.toFixed(1) + " ⭐" : "New", color: "#f59e0b" },
   ];
@@ -40,7 +56,7 @@ export default function Dashboard() {
 
   return (
     <DashLayout title={"Hey, " + user?.name?.split(" ")[0] + " 👋"} subtitle={user?.role === "freelancer" ? "Your freelancer overview" : "Your client overview"}>
-      
+
       {/* Email verification banner */}
       {!user?.isEmailVerified && (
         <div style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: 12, padding: "12px 20px", marginBottom: 24, fontSize: 14, color: "#fbbf24", display: "flex", alignItems: "center", gap: 10 }}>
@@ -48,13 +64,13 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Stats grid */}
+      {/* Stats */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16, marginBottom: 32 }}>
         {stats.map((s) => <StatCard key={s.label} {...s} />)}
       </div>
 
-      {/* Quick action cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 20, marginBottom: 32 }}>
+      {/* Quick actions */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 20, marginBottom: 32 }}>
         {user?.role === "client" && (
           <Link to="/gigs/create" style={{ textDecoration: "none" }}>
             <div className="glass-card" style={{ padding: 24, cursor: "pointer", borderColor: "rgba(108,99,255,0.3)", transition: "all 0.2s" }}>

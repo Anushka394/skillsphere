@@ -61,8 +61,17 @@ const updateProposalStatus = asyncHandler(async (req, res) => {
   if (status === "negotiating" && amount) {
     proposal.negotiationHistory.push({ proposedBy: isClient ? "client" : "freelancer", amount, message });
   }
+
   proposal.status = status;
   await proposal.save();
+
+  // When client accepts proposal — assign freelancer to gig + mark in_progress
+  if (status === "accepted" && isClient) {
+    await Gig.findByIdAndUpdate(gig._id, {
+      assignedFreelancer: proposal.freelancer,
+      status: "in_progress",
+    });
+  }
 
   const notifyUser = isClient ? proposal.freelancer : gig.client;
   await Notification.create({
@@ -73,8 +82,15 @@ const updateProposalStatus = asyncHandler(async (req, res) => {
     link: `/gigs/${gig._id}`,
   });
 
+  const io = req.app.get("io");
+  io?.to(notifyUser.toString()).emit("notification", {
+    type: status === "accepted" ? "proposal_accepted" : "proposal_rejected",
+    message: `Your proposal was ${status}`,
+  });
+
   res.json({ success: true, proposal });
 });
+
 const getReceivedProposals = asyncHandler(async (req, res) => {
   const gigs = await Gig.find({ client: req.user._id });
   const gigIds = gigs.map((g) => g._id);
