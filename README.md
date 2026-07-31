@@ -1,22 +1,59 @@
-# SkillSphere — Hyperlocal Freelance Ecosystem
+# SkillSphere — Intelligent Hyperlocal Freelance Ecosystem
 
-A full-stack MERN freelance marketplace platform built during Nayoda internship.
+A full-stack MERN platform connecting clients with freelancers — built during Nayoda Full Stack Development Internship.
+
+**Live at**: https://skillsphere-bay.vercel.app/
+
+---
 
 ## Tech Stack
-- **Frontend**: React.js, Redux Toolkit, Tailwind CSS, Vite
-- **Backend**: Node.js, Express.js, MongoDB Atlas
-- **Real-time**: Socket.IO
-- **Auth**: JWT
-- **AI**: HuggingFace (job matching)
 
-## Features
-- Multi-role auth (Client, Freelancer, Admin)
-- Gig marketplace with AI matching
-- Real-time chat & notifications
-- Dashboard with analytics
+**Frontend**: React 18, Redux Toolkit, Vite, Tailwind CSS, Socket.IO Client
 
-## Timeline
-- **Week 1** — Auth, profiles, role management
-- **Week 2** — Gig marketplace, proposals, AI matching
-- **Week 3** — Real-time chat, reviews, notifications
-- **Week 4** — dashboard, UI polish
+**Backend**: Node.js, Express.js, MongoDB Atlas, Socket.IO, JWT
+
+**Integrations**: HuggingFace AI, Cloudinary, Nodemailer (Gmail SMTP)
+
+---
+
+## Key Features
+
+- **Multi-role Auth** — Client, Freelancer with JWT + Email verification
+- **Gig Marketplace** — Post gigs with milestones, budget, location filters
+- **AI Job Matching** — HuggingFace skill similarity scoring for freelancer recommendations
+- **Proposal System** — Submit, accept, reject, negotiate proposals
+- **Real-time Chat** — Socket.IO instant messaging with typing indicators
+- **Notifications** — Real-time alerts for proposals, messages, reviews
+- **Review System** — Weighted reputation scoring with fraud detection
+
+---
+
+## Setup
+
+```bash
+# Backend
+cd backend
+npm install
+cp .env.example .env   # fill in MONGO_URI and JWT_SECRET
+npm run dev            # runs on port 5000
+
+# Frontend
+cd frontend
+npm install
+npm run dev            # runs on port 5173
+```
+
+---
+
+## Development Timeline
+
+| Week | Backend | Frontend |
+|---|---|---|
+| 1 | Auth, JWT, Profiles | Login, Register, Dashboard |
+| 2 | Gig APIs, Proposals, AI Matching | Marketplace, Gig Detail, Proposals |
+| 3 | Socket.IO Chat, Reviews, Notifications | Chat UI, Notifications |
+| 4 | APIs, Security | Dashboard, UI Polish |
+
+---
+
+*Built for Nayoda Internship — Project Review: 22 July 2026*
